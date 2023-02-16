@@ -1,73 +1,102 @@
 import './css/styles.css';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
-import { fetchCountries } from './fetch_countries';
-// const debounce = require('lodash.debounce');
+import PixabayServise from './fetch_pixabay';
+import SimpleLightbox from 'simplelightbox';
+import 'simplelightbox/dist/simple-lightbox.min.css';
 
-const searchInput = document.querySelector('search-input');
-const searchBtn = document.querySelector('.search-btn');
+const pixabayServise = new PixabayServise();
+
+const searchForm = document.querySelector('.search-form');
+const searchInput = document.querySelector('.search-input');
 const galleryList = document.querySelector('.gallery-list');
 
-searchBtn.addEventListener('click', getSearchResult);
+searchForm.addEventListener('submit', getSearchResult);
+window.addEventListener('scroll', getMoreResults);
 
 function getSearchResult(e) {
   e.preventDefault();
-  // const searchQuery = e.target.value.trim();
 
-  // if (searchQuery === '') {
-  //   clearPage();
-  //   return;
-  // }
+  pixabayServise.query = searchInput.value;
+  pixabayServise.fetchPictures().then(({ data }) => {
+    if (data.total === 0) {
+      clearPage();
 
-  fetchCountries()
-    .then(query => {
-      console.log(query);
-    })
-    .catch(onFetchError);
+      Notify.failure(
+        'Sorry, there are no images matching your search query. Please try again.'
+      );
+      return;
+    }
+
+    Notify.success(`Hooray! We found ${data.totalHits} images.`);
+
+    clearPage();
+    createGallery(data.hits);
+    nextPage();
+  });
 }
 
-// function createCountryList(query) {
-//   clearPage();
+function createGallery(query) {
+  const countryItem = query
+    .map(
+      ({
+        webformatURL,
+        largeImageURL,
+        tags,
+        likes,
+        views,
+        comments,
+        downloads,
+      }) =>
+        `<li class="list-item">
+      <div class="photo-card">
+      <div class="photo-container">
+      <a class="photo" href="${largeImageURL}">
+  <img src="${webformatURL}" alt="${tags}" loading="lazy" />
+  </a>
+  </div>
+  <div class="info">
+    <p class="info-item">
+      <b>Likes</b> ${likes}
+    </p>
+    <p class="info-item">
+      <b>Views</b> ${views}
+    </p>
+    <p class="info-item">
+      <b>Comments</b> ${comments}
+    </p>
+    <p class="info-item">
+      <b>Downloads</b> ${downloads}
+    </p>
+  </div>
+</div>
+</li>`
+    )
+    .join('');
+  galleryList.insertAdjacentHTML('beforeend', countryItem);
 
-//   if (query.length > 10) {
-//     Notify.info('Too many matches found. Please enter a more specific name.');
-//     return;
-//   }
-//   if (query.length === 1) {
-//     return createDataAboutCountry(query);
-//   }
-
-//   const countryItem = query
-//     .map(
-//       ({ name, flags }) =>
-//         `
-//       <li class="country_list">
-//   <img  src="${flags.png}" alt="flag of ${name}" width=30px>
-//   <p class="country_list_name">${name}</p>
-// </li>`
-//     )
-//     .join('');
-//   countryList.insertAdjacentHTML('beforeend', countryItem);
-// }
-
-// function createDataAboutCountry(query) {
-//   clearPage();
-
-//   const { capital, name, population, languages, flags } = query[0];
-//   const nameLanguages = languages.map(language => language.name);
-
-//   const infoAboutCountry = `<img src="${flags.png}" alt="" width=150px>
-//       <p class="name">Official name: ${name}</p>
-//       <p class="capital">Capital: ${capital}</p>
-//       <p class="population">Population: ${population}</p>
-//       <p class="languages">Languages: ${nameLanguages.join(', ')}</p>`;
-//   dataContainer.insertAdjacentHTML('beforeend', infoAboutCountry);
-// }
+  new SimpleLightbox('.photo', {
+    captions: false,
+  });
+}
 
 function clearPage() {
-  countryList.innerHTML = '';
-  dataContainer.innerHTML = '';
+  window.scrollTo(0, 0);
+
+  galleryList.innerHTML = '';
 }
 
-function onFetchError() {
-  Notify.failure('Oops, there is no country with that name');
+function nextPage() {
+  pixabayServise.page += 1;
+}
+
+function getMoreResults() {
+  if (
+    window.scrollY + window.innerHeight >=
+    document.documentElement.scrollHeight
+  ) {
+    pixabayServise.fetchPictures().then(({ data }) => {
+      createGallery(data.hits);
+      nextPage();
+    });
+  }
 }
