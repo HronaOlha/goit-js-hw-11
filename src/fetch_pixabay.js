@@ -6,10 +6,10 @@ export default class PixabayServise {
     this.page = 1;
   }
 
-  fetchPictures() {
+  async fetchPictures() {
     const url = `https://pixabay.com/api/?key=33669758-051ccdd3e1f8c77fcf59fb873&image_type=photo&orientation=horizontal&safesearch=true&q=${this.searchQuery}&per_page=40&page=${this.page}`;
 
-    return axios.get(url);
+    return await axios.get(url);
   }
 
   get query() {
